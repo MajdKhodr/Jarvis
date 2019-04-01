@@ -3,9 +3,9 @@
 	border: none;
 	cursor: pointer;
 	opacity: 0.8;
-	position: fixed;
+	position: absolute;
+	right: 5px;
 	bottom: 90px;
-	right: 28px;
 }
 
 .chat-popup {
