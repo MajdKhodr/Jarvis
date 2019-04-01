@@ -5,7 +5,7 @@ const Token = use('App/Models/Token');
 const Helpers = use('Helpers');
 const graph = require('@microsoft/microsoft-graph-client');
 const Event = use('Event');
-const Logger = use('User');
+const Logger = use('Logger');
 /**
  * Retrieve access token for Microsoft Graph from the data basebase.
  *
@@ -398,7 +398,7 @@ class RoomController {
 			return (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0);
 		});
 
-		return view.render('userPages.searchResults', { code: code });
+		return view.render('userPages.searchResults', { code: code, cards: '{}' });
 	}
 
 	/**
