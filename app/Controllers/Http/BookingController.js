@@ -5,6 +5,10 @@ const Booking = use('App/Models/Booking');
 const Token = use('App/Models/Token');
 const graph = require('@microsoft/microsoft-graph-client');
 
+// Used for time related calcuklations and formatting
+const moment = require('moment');
+require('moment-round');
+
 /**
  * Retrieve access token for Microsoft Graph from the data basebase.
  *
@@ -138,7 +142,7 @@ class BookingController {
 			url: `/user/${auth.user.id}/bookings`
 		});
 
-		return response.redirect('/booking');
+		return response.route('/userDash');
 	}
 
 	/**
@@ -146,47 +150,61 @@ class BookingController {
 	 *
 	 * @param {Object} Context The context object.
 	 */
-	async getRoomBookings ({ params, view, auth, response }) {
-		var canEdit = 0;
-		var layoutType;
+	async getBookings ({ params, view, auth }) {
 		const userRole = await auth.user.getUserRole();
-
-		if (auth.user.id === Number(params.id) || userRole === 'admin') {
-			canEdit = 1;
-		}
+		var canEdit = (auth.user.id === Number(params.id) || userRole === 'admin') ? 1 : 0;
+		var idType = (params.bookingType === 'user') ? 'user_id' : 'room_id';
+		var bookingsType = (idType === 'user_id') ? 'userBookings' : 'roomBookings';
 
 		// Queries the database fr the bookings associated to a specific room
 		let searchResults = await Booking
 			.query()
-			.where('room_id', params.id)
+			.where(idType, params.id)
+			.whereRaw("bookings.'to' >= ?", moment().format('YYYY-MM-DDTHH:mm')) // eslint-disable-line
+			.orderBy('to', 'asc')
 			.fetch();
 
 		searchResults = searchResults.toJSON();
 		const bookings = await populateBookings(searchResults);
 
-		return view.render('userPages.manageBookings', { bookings, layoutType, canEdit });
-	}
+		// counts the number of approved bookings
+		let numberOfApprovedBookings = await Booking
+			.query()
+			.where(idType, params.id)
+			.where('status', 'Approved')
+			.whereRaw("bookings.'to' >= ?", moment().format('YYYY-MM-DDTHH:mm')) // eslint-disable-line
+			.getCount();
 
-	/**
-	 * Create a list of all bookings under the current user and render a view for it.
-	 *
-	 * @param {Object} Context The context object.
-	 */
-	async getUserBookings ({ params, auth, view, response }) {
-		var canEdit = 0;
-		var layoutType = '';
-		const userRole = await auth.user.getUserRole();
-
-		// check if user is viewing their own profile
-		if (auth.user.id === Number(params.id) || userRole === 'admin') {
-			layoutType = 'layouts/mainLayout';
-			canEdit = 1;
+		if (numberOfApprovedBookings === 0) {
+			numberOfApprovedBookings = '0';
 		}
 
-		const results = (await Booking.query().where('user_id', params.id).fetch()).toJSON();
-		const bookings = await populateBookings(results);
+		// calculate the number of bookings a room has this month
+		let numberOfBookingsThisMonth = await Booking
+			.query()
+			.where(idType, params.id)
+			.where('status', 'Approved')
+			.whereRaw("bookings.'to' >= ?", moment().format('YYYY-MM-DDTHH:mm')) // eslint-disable-line
+			.whereRaw("strftime('%Y-%m', bookings.'to') < ?", moment().add(1, 'M').format('YYYY-MM')) // eslint-disable-line
+			.getCount();
 
-		return view.render('userPages.manageUserBookings', { bookings, layoutType, canEdit });
+		if (numberOfBookingsThisMonth === 0) {
+			numberOfBookingsThisMonth = '0';
+		}
+
+		// Queries the database fr the cancelled bookings
+		let numberOfCancelled = await Booking
+			.query()
+			.where(idType, params.id)
+			.where('status', 'Cancelled')
+			.whereRaw("bookings.'to' >= ?", moment().format('YYYY-MM-DDTHH:mm')) // eslint-disable-line
+			.getCount();
+
+		if (numberOfCancelled === 0) {
+			numberOfCancelled = '0';
+		}
+
+		return view.render('userPages.manageBookings', { bookings, numberOfApprovedBookings, numberOfBookingsThisMonth, numberOfCancelled, bookingsType, canEdit });
 	}
 
 	/**
@@ -194,17 +212,18 @@ class BookingController {
 	 *
 	 * @param {Object} Context The context object.
 	 */
-	async cancelBooking ({ params, response, auth }) {
+	async cancelBooking ({ params, response, view }) {
 		const booking = await Booking.findBy('id', params.id);
 		const roomId = booking.toJSON().room_id;
 		const calendarId = (await Room.findBy('id', roomId)).toJSON().calendar;
 		const eventId = booking.toJSON().event_id;
+		const idType = (params.bookingType === 'user') ? booking.toJSON().user_id : booking.toJSON().room_id;
 
 		await this.deleteEvent(calendarId, eventId);
 		booking.status = 'Cancelled';
 		await booking.save();
 
-		return response.redirect(`/user/${auth.user.id}/bookings`);
+		return response.route('viewBookings', { id: idType, bookingType: params.bookingType });
 	}
 
 	async getCalendarView (calendarId, start, end) {

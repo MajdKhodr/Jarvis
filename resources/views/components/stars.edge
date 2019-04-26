@@ -1,0 +1,11 @@
+@if(rating == 'No Rating')
+    <i>No ratings</i>
+@else
+    @each(number in range(5))
+        @if(number<rating)
+            <i class='fas fa-star fa-sm'></i>
+        @else
+            <i class='far fa-star fa-sm'></i>
+        @endif
+    @endeach
+@endif

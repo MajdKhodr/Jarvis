@@ -1,0 +1,154 @@
+@layout('layouts.mainLayout')
+
+@section('title')
+View Rooms
+@endsection
+
+@section('extracss')
+    <link href='https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css' rel='stylesheet'>
+@endsection
+
+
+@section('content')
+    @!component('components.pageHeader', title='View rooms')
+    <div>
+        {{--  Displays all of the rooms in the database in a table  --}}
+        @if(rooms.length == 0)
+            <div class="row">
+                <p class="fas fa-ghost fa-10x mb-5 mt-5 text-muted"></p>
+				<h3 class="text-muted">There are currently no rooms in the database. To add a room, click <a href='{{ route('addRoom')}}'>here</h3>
+            </div>
+        @else
+            {{-- Room Stat Cards  --}}
+            <div class='row' style='padding-left: 15px;'> 
+                <div class='col card stats-card shadow no-padding'>
+                    <div class='card-highlight-primary'></div>
+                    <div class="card-body">
+                        <div class='row justify-content-center' style='margin: 20px 0 20px 0;' >
+                            <i class='md-auto no-padding color-info card-icon far fa-flag fa-2x'></i>
+                            <div class='md-auto flex-item no-padding text-left stats-card-content' style='padding-left:15px;'>
+                                <div class='row'>
+                                    <h2 class='col no-margin'><strong>{{ stats['total'] }}</strong></h2>
+                                </div>
+                                <div class='row'>
+                                    <h5 class='col text-grey'>Total rooms</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class='col card stats-card shadow no-padding'>
+                    <div class='card-highlight-success'></div>
+                    <div class="card-body">
+                        <div class='row justify-content-center' style='margin: 20px 0 20px 0;'>
+                            <i class='d-inline-flex no-padding color-success card-icon fas fa-door-open fa-2x'></i>
+                            <div class='no-padding text-left stats-card-content' style='padding-left:15px;'>
+                                <div class='row'>
+                                    <h2 class='col no-margin'><strong>{{ stats['active'] }}</strong></h2>
+                                </div>
+                                <div class='row'>
+                                    <h5 class='col text-grey'>Active</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class='col card stats-card shadow no-padding'>
+                    <div class='card-highlight-warning'></div>
+                    <div class="card-body">
+                        <div class='row justify-content-center' style='margin: 20px 0 20px 0;'>
+                            <i class='d-inline-flex no-padding color-warning card-icon fas fa-wrench fa-2x'></i>
+                            <div class='no-padding text-left stats-card-content' style='padding-left:15px;'>
+                                <div class='row'>
+                                    <h2 class='col no-margin'><strong>{{ stats['maintenance'] }}</strong></h2>
+                                </div>
+                                <div class='row'>
+                                    <h5 class='col text-grey'>Maintenance</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class='col card stats-card shadow no-padding'>
+                    <div class='card-highlight-danger'></div>
+                    <div class="card-body">
+                        <div class='row justify-content-center' style='margin: 20px 0 20px 0;'>
+                            <i class='d-inline-flex no-padding color-danger card-icon fas fa-door-closed fa-2x'></i>
+                            <div class='no-padding text-left stats-card-content' style='padding-left:15px;'>
+                                <div class='row'>
+                                    <h2 class='col no-margin'><strong>{{ stats['deactive'] }}</strong></h2>
+                                </div>
+                                <div class='row'>
+                                    <h5 class='col text-grey'>Deactivated</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card shadow mt-4 mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary" id='all-rooms'>All rooms</h6>
+                </div>
+                <div class="card-body">
+                    <div class='table table-responsive' aria-describedby='all-rooms'>
+                        <table id='roomsTable' class='table table-hover' style='width:100%;'>
+                            <thead>
+                                <tr>
+                                    <th scope='col' class='text-center' style='width:10%'>Name</th>
+                                    <th scope='col' class='text-center' style='width:25%'>Full name</th>
+                                    <th scope='col' class='text-center' style='width:15%'>Phone number</th>
+                                    <th scope='col' class='text-center' style='width:10%'>Floor</th>
+                                    <th scope='col' class='text-center' style='width:10%'>Tower</th>
+                                    <th scope='col' class='text-center' style='width:10%'>Capacity</th>
+                                    <th scope='col' class='text-center' style='width:10%'>Room status</th>
+                                </tr>
+                            </thead>
+                            {{--  Loops through the rooms array and displays every room's content  --}}
+                            <tbody>
+                                @each(room in rooms) 
+                                    <tr class='table-light row-hover' aria-label='{{ room.name }} content' onclick="window.location='{{ route('showRoom', { id: room.id }) }}';">
+                                        <td class='text-center'>{{ room.name }}</td>
+                                        <td class='text-center'>{{ room.fullName }}</td>
+                                        <td class='text-center'>{{ room.telephone }}</td>
+                                        <td class='text-center'>{{ room.floor }}</td>
+                                        <td class='text-center'>{{ room.tower }} </td>
+                                        <td class='text-center'>{{ room.capacity }}</td>
+                                        @if(room.state == 1)
+                                            <td class='text-'><i class="fas fa-circle td-success fa-xs mr-1"></i> Active</span></td>
+                                        @elseif(room.state == 2)
+                                            <td class='text-'><i class="fas fa-circle td-danger fa-xs mr-1"></i> Deactivated</span></td>
+                                        @else
+                                            <td class='text-'><i class="fas fa-circle td-warning fa-xs mr-1"></i> Maintenance</span></td>
+                                        @endif 
+                                    </tr>
+                                @endeach
+                            </tbody>
+                        </table>
+                    </div> {{-- end table --}}
+                </div>
+            </div>
+        @endif
+    </div> 
+@endsection
+
+{{--  Deals with the search functionality of the table above- searches all fields   --}}
+@section('extrajs') 
+    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js"></script>
+    <script>$(document).ready(function() {
+            $('#roomsTable').DataTable( {
+                "paging":   false,
+                "ordering": true,
+                "info":     false
+            });
+        });
+    </script>
+@endsection
+
+
+
+
+
+
+

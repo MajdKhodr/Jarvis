@@ -1,6 +1,8 @@
 'use strict';
 
 const { ServiceProvider } = require('@adonisjs/fold');
+const moment = require('moment');
+require('moment-round');
 
 class CustomValidationProvider extends ServiceProvider {
 	/**
@@ -31,6 +33,7 @@ class CustomValidationProvider extends ServiceProvider {
 		Validator.extend('isAfterToday', this._isAfterToday, '');
 		Validator.extend('isWithinRange', this._isWithinRange, '');
 		Validator.extend('requiredDropdown', this._requiredDropdown, '');
+		Validator.extend('regexPassword', this._regexPassword, '');
 	}
 
 	/* Validate if time ends in 00 or 30
@@ -53,6 +56,7 @@ class CustomValidationProvider extends ServiceProvider {
 	async _isAfter (data, field, message, args, get) {
 		const before = get(data, field);
 		let after = get(data, args[0]);
+
 		if (before <= after) {
 			if (after.slice(0, 2) < 12) {
 				after += ' AM';
@@ -65,19 +69,18 @@ class CustomValidationProvider extends ServiceProvider {
 		}
 	}
 
-	/* Validate to check if {{args}} and current Date is the same, then make sure the {{field}} is after the current time
+	/* Validate to check if {{args}} and current Date is the same, then make sure the {{field}} is after the current time (rounded to neartest 30mins)
 	*
 	* @usage isAfter
 	*/
 	async _isAfterToday (data, field, message, args, get) {
 		const inputTime = get(data, field);
 		const inputDate = get(data, args[0]);
-		const currentDate = new Date();
-		let currentTime = ('0' + (currentDate.getHours())).slice(-2) + ':' + ('0' + (currentDate.getMinutes())).slice(-2);
-		const newCurrentDate = currentDate.getFullYear() + '-' + ('0' + (currentDate.getMonth() + 1)).slice(-2) + '-' + currentDate.getDate();
+		const currentTime = moment().floor(30, 'minutes');
+		const isAfterToday = moment(inputDate + inputTime, 'YYYY-MM-DDHH:mm').isSameOrAfter(currentTime);
 
 		// if the current date and the search date is the same, check that the times are NOT in the past
-		if (inputDate === newCurrentDate && inputTime < currentTime) {
+		if (!(isAfterToday)) {
 			throw message;
 		}
 	}
@@ -124,6 +127,19 @@ class CustomValidationProvider extends ServiceProvider {
 	async _requiredDropdown (data, field, message, args, get) {
 		const userSelection = get(data, field);
 		if (userSelection === 'undefined') {
+			throw message;
+		}
+	}
+
+	/* Validate a user's password to  conatin at least 1 upper, 1 lower, 1 number, 1 special character and at least 8 chars
+	*
+	* @usage requiredDropdown
+	*/
+	async _regexPassword (data, field, message, args, get) {
+		const userSelection = get(data, field);
+		const regex = new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%\^&\*])(?=.{8,})'); // eslint-disable-line
+
+		if (!regex.test(userSelection)) {
 			throw message;
 		}
 	}

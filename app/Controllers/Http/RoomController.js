@@ -5,6 +5,10 @@ const Token = use('App/Models/Token');
 const Helpers = use('Helpers');
 const graph = require('@microsoft/microsoft-graph-client');
 const Event = use('Event');
+// Used for time related calcuklations and formatting
+const moment = require('moment');
+require('moment-round');
+
 /**
  * Retrieve access token for Microsoft Graph from the data basebase.
  *
@@ -38,6 +42,33 @@ function random (times) {
 
 class RoomController {
 	/**
+	*
+	* Render Search Room Page and pass the current time for autofill purposes
+	*
+	* @param {view}
+	*
+	*/
+	async loadSearchRoomsForm ({ view, auth }) {
+		// Calculates the from and too times to pre fill in the search form
+		let fromTime = moment();
+		let toTime = moment();
+		let dropdownSelection = [];
+		const start = moment().startOf('day');
+		const end = moment().endOf('day');
+
+		// round the autofill start and end times to the nearest 30mins
+		fromTime = fromTime.round(30, 'minutes').format('HH:mm');
+		toTime = toTime.round(30, 'minutes').add(1, 'h').format('HH:mm');
+
+		// loop to fill the dropdown times
+		while (start.isBefore(end)) {
+			dropdownSelection.push({ dataValue: start.format('HH:mm'), name: start.format('h:mm A') });
+			start.add(30, 'm');
+		}
+
+		return view.render('userPages.searchRooms', { fromTime, toTime, dropdownSelection });
+	}
+	/**
 	 * Takes in a variable and converts the value to 0 if it's null (Used for checkboxes)
 	 *
 	 * @param {Object} variable The variable that will be converted
@@ -52,7 +83,7 @@ class RoomController {
 	}
 	async create ({ response, view, auth }) {
 		const actionType = 'Add Room';
-		return view.render('adminDash.addEditRoom', { actionType });
+		return view.render('adminPages.addEditRoom', { actionType });
 	}
 
 	/**
@@ -115,6 +146,7 @@ class RoomController {
 			return response.route('showRoom', { id: room.id });
 		} catch (err) {
 			console.log(err);
+			return response.redirect('/');
 		}
 	}
 
@@ -127,7 +159,7 @@ class RoomController {
 		// Retrieves room object
 		const room = await Room.findBy('id', params.id);
 		const actionType = 'Edit Room';
-		return view.render('adminDash.addEditRoom', { room: room, actionType });
+		return view.render('adminPages.addEditRoom', { room: room, actionType });
 	}
 
 	/**
@@ -147,24 +179,39 @@ class RoomController {
 			types: ['image'],
 			size: '2mb'
 		});
-		await floorPlanImage.move(Helpers.publicPath('uploads/floorPlans/'), {
-			name: `${body.name}_floorPlan.png`,
-			overwrite: true
-		});
+
+		let floorPlanStringPath;
+		if (floorPlanImage != null) {
+			await floorPlanImage.move(Helpers.publicPath('uploads/floorPlans/'), {
+				name: `${body.name}_floorPlan.png`,
+				overwrite: true
+			});
+			floorPlanStringPath = `uploads/floorPlans/${body.name}_floorPlan.png`;
+		} else {
+			floorPlanStringPath = room.floorplan;
+		}
 
 		// Upload process - Room Picture
 		const roomImage = request.file('roomPicture', {
 			types: ['image'],
 			size: '2mb'
 		});
-		await roomImage.move(Helpers.publicPath('uploads/roomPictures/'), {
-			name: `${body.name}_roomPicture.png`,
-			overwrite: true
-		});
+
+		let roomImageStringPath;
+		if (roomImage != null) {
+			await roomImage.move(Helpers.publicPath('uploads/roomPictures/'), {
+				name: `${body.name}_roomPicture.png`,
+				overwrite: true
+			});
+			roomImageStringPath = `uploads/roomPictures/${body.name}_roomPicture.png`;
+		} else {
+			roomImageStringPath = room.picture;
+		}
+
 		// Updates room information in database
 		await Room
 			.query()
-			.where('name', room.name)
+			.where('id', room.id)
 			.update({
 				name: body.name,
 				fullName: body.fullName,
@@ -180,13 +227,12 @@ class RoomController {
 				videoConference: body.videoCheck === '1' ? '1' : '0',
 				surfaceHub: body.surfaceHubCheck === '1' ? '1' : '0',
 				pc: body.pcCheck === '1' ? '1' : '0',
-				floorplan: `uploads/floorPlans/${body.name}_floorPlan.png`,
-				picture: `uploads/roomPictures/${body.name}_roomPicture.png`,
+				floorplan: floorPlanStringPath,
+				picture: roomImageStringPath,
 				extraEquipment: body.extraEquipment == null ? ' ' : body.extraEquipment,
 				comment: body.comment == null ? ' ' : body.comment,
 				state: body.state
 			});
-		room = await Room.findBy('name', body.name);
 		session.flash({ notification: 'Room Updated!' });
 
 		return response.route('showRoom', { id: room.id });
@@ -199,8 +245,25 @@ class RoomController {
 	 */
 	async show ({ response, auth, params, view, request }) {
 		try {
-			// get the search form data if employee view
+			// get the search form date range if filled in, otherwise generate the data with current date
 			const form = request.only(['date', 'from', 'to']);
+			if (!form.date || form.date === 'undefined' || !form.from || form.from === 'undefined' || !form.to || form.to === 'undefined') {
+				form.date = moment().format('YYYY-MM-DD');
+				form.from = moment().round(30, 'minutes').format('HH:mm');
+				form.to = moment().round(30, 'minutes').add(1, 'h').format('HH:mm');
+			}
+
+			// generating form for droptime times
+			let dropdownSelection = [];
+			const start = moment().startOf('day');
+			const end = moment().endOf('day');
+
+			// loop to fill the dropdown times
+			while (start.isBefore(end)) {
+				dropdownSelection.push({ dataValue: start.format('HH:mm'), name: start.format('h:mm A') });
+				start.add(30, 'm');
+			}
+
 			const room = await Room.findOrFail(params.id);
 			const userRole = await auth.user.getUserRole();
 			const hasReview = await this.hasRatingAndReview(auth.user.id, params.id);
@@ -219,14 +282,32 @@ class RoomController {
 			}
 
 			// retrieves all of the reviews associated to this room
-			let searchResults = await Review
+			let reviewResults = await Review
 				.query()
 				.where('room_id', params.id)
+				.with('user')
 				.fetch();
-			const reviews = searchResults.toJSON();
 
-			return view.render('userPages.roomDetails', { id: params.id, room, isAdmin, form, hasReview, reviews, review });
+			// retrieves all of the reviews associated to this room
+			let reviewsCount = await Review
+				.query()
+				.where('room_id', params.id)
+				.with('user')
+				.getCount();
+
+			var reviews = reviewResults.toJSON();
+
+			for (var index = 0; index < reviewsCount; ++index) {
+				var dd = Date.parse(reviews[index].created_at);
+				reviews[index].comment_date = moment(dd).format('YYYY-MM-DD');
+			}
+
+			// Adds new attribute - rating - to every room object
+			room.rating = await this.getAverageRating(room.id);
+
+			return view.render('userPages.roomDetails', { id: params.id, room, isAdmin, form, hasReview, reviews, review, reviewsCount, dropdownSelection });
 		} catch (error) {
+			console.log(error);
 			return response.redirect('/');
 		}
 	}
@@ -279,7 +360,7 @@ class RoomController {
 
 		// if user is admin
 		if (userRole === 'admin') {
-			return view.render('adminDash.viewRooms', { rooms, stats });
+			return view.render('adminPages.viewRooms', { rooms, stats });
 		} else {
 			return view.render('userPages.results', { rooms });
 		}
@@ -301,7 +382,7 @@ class RoomController {
 
 		const rooms = searchResults.toJSON();
 
-		return view.render('adminDash.viewRooms', { rooms });
+		return view.render('adminPages.viewRooms', { rooms });
 	}
 
 	/**
@@ -381,14 +462,28 @@ class RoomController {
 
 		const code = random(4);
 		const checkRoomAvailability = async () => {
+			let results = [];
+
 			await asyncForEach(rooms, async (item) => {
 				if (await this.getRoomAvailability(date, from, to, item.calendar)) {
 					Event.fire('send.room', {
 						card: view.render('components.card', { form, room: item, token: request.csrfToken }),
 						code: code
 					});
+
+					results.push(item);
 				}
 			});
+
+			Event.fire('send.done', {
+				code: code
+			});
+
+			if (results.length === 0) {
+				Event.fire('send.empty', {
+					code: code
+				});
+			}
 		};
 
 		setTimeout(checkRoomAvailability, 500);

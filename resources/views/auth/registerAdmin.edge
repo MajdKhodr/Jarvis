@@ -15,7 +15,7 @@ Jarvis - Login
 	      			<div class="col-lg-12">
 		        		<div class="p-5">
 		        			<div class='text-left'>
-								<img class='login-logo mb-3' src='/logo_full_dark.png'>					                  		
+								<img class='login-logo mb-3' src='/logo_full_dark.png' alt='Jarvis Logo'>					                  		
 	                  		</div>
 							<div class="text-left">
 								<h1 class="h4 text-gray-900 mb-4">Register Admin</h1>
@@ -26,7 +26,7 @@ Jarvis - Login
 								<div class='form-row'>
 								    <div class='col-md-6'>
 								      	<div class='form-group mb-2'>
-											<label for='firstname'>First Name</label>
+											<label for='firstname'>First name</label>
 											<input type='text' class='form-control' name='firstname' id='firstname' placeholder='John' value='{{ old('firstname', '') }}'>
 											@if(hasErrorFor('firstname'))
 												<div class='invalid-feedback d-block'>{{ getErrorFor('firstname') }}</div>
@@ -35,7 +35,7 @@ Jarvis - Login
 									</div>
 									<div class='col-md-6'>
 									    <div class='form-group mb-2'>
-											<label for='lastname'>Last Name</label>
+											<label for='lastname'>Last name</label>
 											<input type='text' class='form-control' name='lastname' id='lastname' placeholder='Doe' value='{{ old('lastname', '') }}'>
 											@if(hasErrorFor('lastname'))        
 							              		<div class='invalid-feedback d-block'>{{ getErrorFor('lastname') }}</div>
@@ -65,7 +65,7 @@ Jarvis - Login
 									</div>
 									<div class='col-md-6'>
 									    <div class='form-group mb-2'>
-								      		<label for='confirmPassword'>Confirm Password</label>
+								      		<label for='confirmPassword'>Confirm password</label>
 								      		<input type='password' class='form-control' name='confirmPassword' id='confirmPassword' placeholder='Password'>
 											@if(hasErrorFor('confirmPassword'))
 											  <div class='invalid-feedback d-block'>{{ getErrorFor('confirmPassword') }}</div>
@@ -75,7 +75,7 @@ Jarvis - Login
 								 </div>
 
 								 <div class='form-group mb-2'>
-					  				<label for='token'>Admin Token</label>
+					  				<label for='token'>Admin token</label>
 									  <input type='text' class='form-control' name='token' id='token' placeholder='Token'>
 									  @if(hasErrorFor('token'))
 										<div class='invalid-feedback d-block'>{{ getErrorFor('token') }}</div>
